@@ -22,6 +22,7 @@ function runKotlin(src) {
     if (v.t === "list") return "[" + v.v.map(toStr).join(", ") + "]";
     if (v.t === "range") return v.v.from + ".." + v.v.to;
     if (v.t === "fun") return "fun " + (v.name || "") + "(...)";
+    if (v.t === "random") return "Random";
     return String(v.v);
   }
   function isTrue(v) {
@@ -486,6 +487,7 @@ function runKotlin(src) {
     if (o.t === "range" && name === "step") return { t: "num", v: o.v.step };
     // методы возвращаем как связанные вызовы
     if (o.t === "list" && ["add", "isEmpty", "isNotEmpty", "contains"].includes(name)) return { t: "method", o, name };
+    if (o.t === "random" && ["nextInt", "nextBoolean"].includes(name)) return { t: "method", o, name };
     if (o.t === "str" && ["uppercase", "lowercase", "toInt", "toDouble", "isEmpty", "isNotEmpty", "length"].includes(name)) return { t: "method", o, name };
     throw err(line, "Не знаю свойство/метод ." + name);
   }
@@ -554,6 +556,22 @@ function runKotlin(src) {
   }
 
   function callMethod(o, name, args, line) {
+    if (o.t === "random") {
+      if (name === "nextInt") {
+        if (args.length === 1 && args[0].t === "num") {
+          const n = Math.trunc(args[0].v);
+          if (n <= 0) throw err(line, "nextInt: число должно быть больше 0");
+          return { t: "num", v: Math.floor(Math.random() * n) };
+        }
+        if (args.length === 2 && args[0].t === "num" && args[1].t === "num") {
+          const from = Math.trunc(args[0].v), until = Math.trunc(args[1].v);
+          if (until <= from) throw err(line, "nextInt: конец должен быть больше начала");
+          return { t: "num", v: from + Math.floor(Math.random() * (until - from)) };
+        }
+        throw err(line, "nextInt(n) или nextInt(from, until)");
+      }
+      if (name === "nextBoolean") return { t: "bool", v: Math.random() < 0.5 };
+    }
     if (o.t === "list") {
       if (name === "add") { o.v.push(args[0] !== undefined ? args[0] : { t: "null", v: null }); return { t: "bool", v: true }; }
       if (name === "isEmpty") return { t: "bool", v: o.v.length === 0 };
@@ -710,6 +728,7 @@ function runKotlin(src) {
   try {
     const ast = parseProgram();
     const global = Scope(null);
+    global.vars["Random"] = { t: "random" };
     for (const st of ast.body) execStmt(st, global);
     if (findScope(global, "main")) callFunc("main", [], global, null);
     return { ok: true, output: output.join("\n") };

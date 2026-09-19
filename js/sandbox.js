@@ -32,6 +32,7 @@ function renderSandbox(v) {
     '<div class="row-btns">' +
       '<button class="btn-3d btn-green btn-big" onclick="sbRun()">▶ Запустить</button>' +
       (cur ? '<button class="btn-3d btn-blue btn-big" onclick="sbCheck()">✅ Проверить</button>' : "") +
+      (cur && cur.solution ? '<button class="btn-3d btn-gray" onclick="sbSolution()">🔍 Решение</button>' : "") +
       '<button class="btn-3d btn-gray" onclick="sbReset()">↺ Сбросить</button>' +
     "</div>" +
     '<div class="console" id="sb-console"><span class="muted">Нажми «Запустить», чтобы увидеть результат…</span></div>';
@@ -52,6 +53,16 @@ function renderSandbox(v) {
   });
 
   window.sbPick = (id) => { S.sandboxTask = id; save(); renderSandbox(document.getElementById("view")); };
+  window.sbSolution = () => {
+    const t = SANDBOX_TASKS.find(x => x.id === taskId);
+    if (!t || !t.solution) return;
+    if (!S.sbSol) S.sbSol = {};
+    S.sbSol[t.id] = 1; save();
+    document.getElementById("sb-console").innerHTML =
+      "<div class='c-ok'>🔍 Решение задачи «" + esc(t.title) + "»:</div><pre>" + esc(t.solution) + "</pre>" +
+      "<div class='muted'>Разбери код, вставь в редактор и нажми «Проверить». За подсмотренное решение — +10 XP вместо +30.</div>";
+    toast("Решение показано 👀 Разбери его!");
+  };
   window.sbReset = () => {
     delete S.sandboxCode[taskId]; save();
     renderSandbox(document.getElementById("view"));
@@ -83,15 +94,18 @@ function renderSandbox(v) {
     }
     if (norm(r.output) === norm(t.expected)) {
       celebrate(true);
-      c.innerHTML = "<div class='c-ok'>🎉 Верно! Задача решена!</div><pre>" + esc(r.output) + "</pre>";
       if (!S.sandboxDone[t.id]) {
+        const award = (S.sbSol && S.sbSol[t.id]) ? 10 : 30;
         S.sandboxDone[t.id] = 1;
-        addXP(30); save(); renderAside();
-        toast("+30 XP! Задача решена! ⚡");
+        addXP(award); save(); renderAside();
+        toast("+" + award + " XP! Задача решена! ⚡");
         renderSandbox(document.getElementById("view"));
         document.getElementById("sb-console").innerHTML =
-          "<div class='c-ok'>🎉 Верно! Задача решена! +30 XP</div><pre>" + esc(r.output) + "</pre>";
-      } else toast("Верно! (XP за эту задачу уже получен)");
+          "<div class='c-ok'>🎉 Верно! Задача решена! +" + award + " XP</div><pre>" + esc(r.output) + "</pre>";
+      } else {
+        c.innerHTML = "<div class='c-ok'>🎉 Верно! Задача решена!</div><pre>" + esc(r.output) + "</pre>";
+        toast("Верно! (XP за эту задачу уже получен)");
+      }
     } else {
       c.innerHTML = "<div class='c-err'>✕ Пока не совпадает. Сравни:</div>" +
         "<div class='diff'><div><b>Твой вывод:</b><pre>" + esc(r.output || "(пусто)") + "</pre></div>" +

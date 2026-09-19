@@ -22,7 +22,8 @@ const TIPS = [
 
 /* ---------- Состояние ---------- */
 const DEF = { xp: 0, xpToday: 0, xpDate: "", streak: 0, lastDay: "", tab: "home",
-  tests: {}, theory: {}, practice: {}, kotlin: {}, decks: {}, sandboxDone: {}, klevel: null };
+  tests: {}, theory: {}, practice: {}, cps: {}, kotlin: {}, kotlinCp: 0,
+  decks: {}, sandboxDone: {}, sbSol: {}, klevel: null };
 let S = load();
 function load() {
   try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem("droidlingo_v1") || "{}")); }
@@ -141,14 +142,16 @@ function vHome(v) {
       "<div><div class='unit-num'>РАЗДЕЛ " + (i + 1) + "</div><div class='unit-title'>" + u.icon + " " + esc(u.title) + " — " + esc(u.subtitle) + "</div></div>" +
       (locked ? "<span class='unit-lock'>🔒</span>" : passed ? "<span class='unit-lock'>✅</span>" : "") +
       "</div>";
+    const cpPassed = (S.cps[u.id] || 0) >= 60;
     const nodes = [
       { k: "theory", icon: "📖", label: "Новое", done: !!S.theory[u.id], lock: locked },
       { k: "practice", icon: "🎯", label: "Практика", done: !!S.practice[u.id], lock: locked },
-      { k: "test", icon: passed ? "🏆" : "📝", label: "Тест", done: passed, lock: locked }
+      { k: "test", icon: passed ? "🏆" : "📝", label: "Тест", done: passed, lock: locked },
+      { k: "cp", icon: cpPassed ? "✅" : "🏁", label: u.checkpoint.title, done: cpPassed, lock: locked }
     ];
     h += '<div class="nodes">';
     nodes.forEach((n, j) => {
-      const gi = i * 3 + j;
+      const gi = i * 4 + j;
       const cls = n.lock ? "locked" : n.done ? "done" : "current";
       h += '<button class="node ' + cls + '" style="margin-left:' + ZIG[gi % ZIG.length] + 'px" ' +
         'onclick="nodeClick(' + i + ",'" + n.k + "'" + ')" title="' + n.label + '">' +
@@ -182,6 +185,17 @@ function nodeClick(i, kind) {
       if (r.pct >= 60 && ANDROID_UNITS[i + 1]) toast("🔓 Раздел " + (i + 2) + " открыт!");
     }});
   }
+  if (kind === "cp") openCheckpoint(i);
+}
+function openCheckpoint(i) {
+  const u = ANDROID_UNITS[i];
+  if (!unitUnlocked(i)) { toast("🔒 Сначала пройди тест предыдущего раздела"); return; }
+  toast("🏁 Чекпоинт: " + u.checkpoint.title + "! " + u.checkpoint.desc);
+  openSession({ tag: "🏁 ЧЕКПОИНТ · " + u.checkpoint.title.toUpperCase(), questions: u.checkpoint.questions.map(clone), xpPer: 15, retry: true, done: (r) => {
+    S.cps[u.id] = Math.max(S.cps[u.id] || 0, r.pct);
+    addXP(r.xp); save(); render();
+    if (r.pct >= 60) toast("🏁 Чекпоинт «" + u.checkpoint.title + "» сдан!");
+  }});
 }
 
 /* ---------- Генераторы вопросов ---------- */
@@ -204,13 +218,12 @@ function buildPractice(u) {
 function buildExam() {
   const qs = [];
   ANDROID_UNITS.forEach(u => {
-    shuffle(u.cards).slice(0, 2).forEach(c => {
-      const others = shuffle(u.cards.filter(x => x !== c));
-      qs.push({ t: "choice", q: "[" + u.title + "] Что такое «" + c.t + "»?", options: [c.d, others[0].d, others[1].d, others[2].d], answer: 0 });
-    });
     const c = u.cards[Math.floor(Math.random() * u.cards.length)];
-    const other = u.cards.find(x => x !== c);
-    qs.push({ t: "tf", q: "[" + u.title + "] «" + c.t + "» — " + other.d, answer: false, explain: c.t + ": " + c.d });
+    const others = shuffle(u.cards.filter(x => x !== c));
+    qs.push({ t: "choice", q: "[" + u.title + "] Что такое «" + c.t + "»?", options: [c.d, others[0].d, others[1].d, others[2].d], answer: 0 });
+    const c2 = u.cards[Math.floor(Math.random() * u.cards.length)];
+    const other = u.cards.find(x => x !== c2);
+    qs.push({ t: "tf", q: "[" + u.title + "] «" + c2.t + "» — " + other.d, answer: false, explain: c2.t + ": " + c2.d });
   });
   return shuffle(qs);
 }
@@ -311,11 +324,12 @@ function vTests(v) {
       '<span class="card-btn-t">' + (locked ? "🔒" : best >= 60 ? "🏆" : "📝") + " " + esc(u.title) + "</span>" +
       '<span class="muted">' + u.test.length + " вопросов" + (best ? " · рекорд: " + best + "%" : "") + "</span></button>";
   });
-  const examOpen = (S.tests[ANDROID_UNITS[3].id] || 0) >= 60;
+  const lastU = ANDROID_UNITS[ANDROID_UNITS.length - 1];
+  const examOpen = (S.tests[lastU.id] || 0) >= 60;
   const examBest = S.tests.exam || 0;
   h += '<button class="card-btn exam" ' + (examOpen ? 'onclick="openExam()"' : "disabled") + ">" +
     '<span class="card-btn-t">' + (examOpen ? "🎓" : "🔒") + " Финальный экзамен</span>" +
-    '<span class="muted">12 вопросов по всему курсу' + (examBest ? " · рекорд: " + examBest + "%" : "") + "</span></button>";
+    '<span class="muted">' + (ANDROID_UNITS.length * 2) + ' вопросов по всему курсу' + (examBest ? " · рекорд: " + examBest + "%" : "") + "</span></button>";
   v.innerHTML = h + "</div>";
 }
 function openExam() {
@@ -340,7 +354,24 @@ function vKotlin(v) {
       (best ? " · рекорд: " + best + "%" : "") + "</span></span>" +
       '<span class="level-go">→</span></button>';
   });
+  const lastK = KOTLIN_LEVELS[KOTLIN_LEVELS.length - 1];
+  const cpOpen = (S.kotlin[lastK.id] || 0) >= 60;
+  const cpBest = S.kotlinCp || 0;
+  h += '<button class="level-row" ' + (cpOpen ? 'onclick="openKotlinCp()"' : "disabled") + ">" +
+    '<span class="level-ico" style="background:' + (cpOpen ? "#ff9600" : "#afafaf") + '">' + (cpOpen ? (cpBest >= 60 ? "✓" : "🏁") : "🔒") + "</span>" +
+    '<span class="level-txt"><b>🏁 Чекпоинт: ' + esc(KOTLIN_CHECKPOINT.title) + "</b><span class='muted'>" + esc(KOTLIN_CHECKPOINT.desc) +
+    (cpBest ? " · рекорд: " + cpBest + "%" : "") + "</span></span>" +
+    '<span class="level-go">→</span></button>';
   v.innerHTML = h + "</div>";
+}
+function openKotlinCp() {
+  const lastK = KOTLIN_LEVELS[KOTLIN_LEVELS.length - 1];
+  if ((S.kotlin[lastK.id] || 0) < 60) { toast("🔒 Сначала пройди тест последнего уровня"); return; }
+  openSession({ tag: "🏁 ЧЕКПОИНТ · УГАДАЙ ЧИСЛО", questions: KOTLIN_CHECKPOINT.questions.map(clone), xpPer: 15, retry: true, done: (r) => {
+    S.kotlinCp = Math.max(S.kotlinCp || 0, r.pct);
+    addXP(r.xp); save(); render();
+    if (r.pct >= 60) toast("🏁 А теперь собери игру в Песочнице — задача «Угадай число»! 🎮");
+  }});
 }
 function openKotlin(i) {
   if (!kotlinUnlocked(i)) { toast("🔒 Сначала пройди тест предыдущего уровня"); return; }
@@ -365,7 +396,7 @@ function vKotlinLevel(v, id) {
   v.innerHTML = h;
 }
 function openKotlinDeck(i) {
-  openDeck(4 + i); // колоды kotlin идут после 4 android-колод
+  openDeck(ANDROID_UNITS.length + i); // колоды kotlin идут после android-колод
 }
 function openKotlinQuiz(i) {
   const l = KOTLIN_LEVELS[i];
