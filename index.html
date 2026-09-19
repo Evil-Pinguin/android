@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>DroidLingo — учим Android как в Duolingo 🤖</title>
+  <meta name="description" content="Учим Android Studio и Kotlin с нуля до профи: карточки, закрепление, тесты и песочница с кодом. Без жизней и таймера!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo"><span class="logo-robot">🤖</span><span>DroidLingo</span></div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <button class="side-item" data-tab="home"><span class="ico">🏠</span>Главная</button>
+      <button class="side-item" data-tab="cards"><span class="ico">🃏</span>Карточки</button>
+      <button class="side-item" data-tab="practice"><span class="ico">🎯</span>Закрепление</button>
+      <button class="side-item" data-tab="tests"><span class="ico">📝</span>Тесты</button>
+      <button class="side-item" data-tab="sandbox"><span class="ico">💻</span>Песочница</button>
+      <button class="side-item" data-tab="kotlin"><span class="ico">💜</span>Kotlin</button>
+      <div class="side-foot panel">
+        <h3>🤖 DroidLingo</h3>
+        <div class="muted" style="font-size:13px">Android + Kotlin<br>от чайника до профи.<br>Без жизней и таймера 💚</div>
+      </div>
+    </aside>
+
+    <main id="view"></main>
+    <aside id="aside"></aside>
+  </div>
+
+  <nav class="bottomnav">
+    <button class="bottom-item" data-tab="home"><span class="ico">🏠</span>Главная</button>
+    <button class="bottom-item" data-tab="cards"><span class="ico">🃏</span>Карты</button>
+    <button class="bottom-item" data-tab="practice"><span class="ico">🎯</span>Практика</button>
+    <button class="bottom-item" data-tab="tests"><span class="ico">📝</span>Тесты</button>
+    <button class="bottom-item" data-tab="sandbox"><span class="ico">💻</span>Код</button>
+    <button class="bottom-item" data-tab="kotlin"><span class="ico">💜</span>Kotlin</button>
+  </nav>
+
+  <div id="lesson-root"></div>
+  <div id="toast-box"></div>
+
+  <script src="js/data-android.js"></script>
+  <script src="js/data-kotlin.js"></script>
+  <script src="js/interpreter.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/sandbox.js"></script>
+</body>
+</html>
